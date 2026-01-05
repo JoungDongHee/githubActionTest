@@ -1,8 +1,9 @@
 name: Deploy Source to S3 & Build on AWS
 
 on:
-  release:
-    types: [created]
+  push:
+    branches: [ "main" ] # main 브랜치에 푸시될 때마다 실행
+  workflow_dispatch:     # GitHub Actions 탭에서 수동으로 'Run workflow' 버튼 생성
 
 env:
   AWS_REGION: ap-northeast-2          # 사용 중인 AWS 리전 (예: 서울)
