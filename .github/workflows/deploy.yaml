@@ -1,44 +1,47 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-# This workflow will build a package using Gradle and then publish it to GitHub packages when a release is created
-# For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#Publishing-using-gradle
-
-name: Gradle Package
+name: Deploy Source to S3 & Build on AWS
 
 on:
   release:
     types: [created]
 
-jobs:
-  build:
+env:
+  AWS_REGION: ap-northeast-2          # 사용 중인 AWS 리전 (예: 서울)
+  S3_BUCKET: titil # 소스를 업로드할 S3 버킷 이름
+  CODEDEPLOY_APP: MyCodeDeployApp     # CodeDeploy 애플리케이션 이름
+  CODEDEPLOY_GROUP: MyCodeDeployGroup # CodeDeploy 배포 그룹 이름
 
+jobs:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
-        settings-path: ${{ github.workspace }} # location for the settings.xml file
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
+      # AWS 인증 정보 설정 (GitHub Repository Secrets에 등록 필요)
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Build with Gradle
-      run: ./gradlew build
+      # 소스 코드를 S3에 올리기 위해 압축 (빌드 결과물이 아닌 소스 자체)
+      - name: Zip Source Code
+        run: zip -r source-code.zip . -x "*.git*" "build/*"
 
-    # The USERNAME and TOKEN need to correspond to the credentials environment variables used in
-    # the publishing section of your build.gradle
-    - name: Publish to GitHub Packages
-      run: ./gradlew publish
-      env:
-        USERNAME: ${{ github.actor }}
-        TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # S3로 업로드
+      - name: Upload to S3
+        run: |
+          aws s3 cp source-code.zip s3://${{ env.S3_BUCKET }}/source-code-${{ github.sha }}.zip
+
+      # CodeDeploy 실행 요청
+      - name: Trigger AWS CodeDeploy
+        run: |
+          aws deploy create-deployment \
+            --application-name ${{ env.CODEDEPLOY_APP }} \
+            --deployment-config-name CodeDeployDefault.OneAtATime \
+            --deployment-group-name ${{ env.CODEDEPLOY_GROUP }} \
+            --s3-location bucket=${{ env.S3_BUCKET }},bundleType=zip,key=source-code-${{ github.sha }}.zip
