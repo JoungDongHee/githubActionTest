@@ -8,8 +8,8 @@ on:
 env:
   AWS_REGION: ap-northeast-2          # 사용 중인 AWS 리전 (예: 서울)
   S3_BUCKET: titil # 소스를 업로드할 S3 버킷 이름
-  CODEDEPLOY_APP: MyCodeDeployApp     # CodeDeploy 애플리케이션 이름
-  CODEDEPLOY_GROUP: MyCodeDeployGroup # CodeDeploy 배포 그룹 이름
+  CODEDEPLOY_APP: titltl-code-deploy     # CodeDeploy 애플리케이션 이름
+  CODEDEPLOY_GROUP: tititl-server # CodeDeploy 배포 그룹 이름
 
 jobs:
   deploy:
