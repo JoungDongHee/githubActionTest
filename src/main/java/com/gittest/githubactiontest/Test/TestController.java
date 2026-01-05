@@ -11,7 +11,6 @@ public class TestController {
 
     @GetMapping("/test/{value}")
     public String test(@PathVariable String value){
-        System.out.println("gitHubActionTEST1111");
 
         return "Hello World"+value;
     }
