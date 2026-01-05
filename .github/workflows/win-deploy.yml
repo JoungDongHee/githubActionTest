@@ -1,25 +1,53 @@
-name: Windows Source Download Only
+name: Remote Build & Local Download
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # GitHub 웹에서 수동 실행 버튼 추가
 
 jobs:
-  checkout-only:
-    # 윈도우 Self-Hosted Runner 지정
-    runs-on: [ self-hosted, windows, x64 ]
+  # [Job 1] 빌드는 GitHub가 제공하는 Ubuntu 서버에서 수행
+  build-on-cloud:
+    runs-on: ubuntu-latest
 
     steps:
-      # 1. 소스 코드 내려받기
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. 다운로드 위치 및 파일 목록 출력 (확인용)
-      - name: Show Download Location & Files
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Gradle
+        run: |
+          chmod +x gradlew
+          ./gradlew build -x test
+
+      # 핵심: 빌드된 jar 파일을 'artifact'라는 임시 저장소에 업로드
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-app-binary       # 아티팩트 이름 (Job 2에서 이 이름으로 찾음)
+          path: build/libs/*.jar    # 업로드할 파일 경로
+          retention-days: 1         # 보관 기간 (하루만 보관)
+
+  # [Job 2] 내 윈도우 PC는 결과물만 다운로드
+  deploy-to-windows:
+    needs: build-on-cloud         # Job 1이 성공해야만 실행됨
+    runs-on: [ self-hosted, windows, x64 ]
+
+    steps:
+      # 소스 코드를 checkout 할 필요 없이, 결과물만 받아옵니다.
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: my-app-binary       # Job 1에서 정한 이름
+          path: C:\my-server\dist   # 윈도우 PC에 저장할 원하는 위치 (폴더 자동 생성됨)
+
+      - name: Verify Download
         shell: cmd
         run: |
-          echo "소스 코드가 다운로드된 위치:"
-          echo %GITHUB_WORKSPACE%
-          echo "--------------------------------"
-          dir
+          echo "파일 다운로드 완료!"
+          dir C:\my-server\dist
