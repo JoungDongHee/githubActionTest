@@ -1,0 +1,25 @@
+name: Windows Source Download Only
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # GitHub 웹에서 수동 실행 버튼 추가
+
+jobs:
+  checkout-only:
+    # 윈도우 Self-Hosted Runner 지정
+    runs-on: [ self-hosted, windows, x64 ]
+
+    steps:
+      # 1. 소스 코드 내려받기
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. 다운로드 위치 및 파일 목록 출력 (확인용)
+      - name: Show Download Location & Files
+        shell: cmd
+        run: |
+          echo "소스 코드가 다운로드된 위치:"
+          echo %GITHUB_WORKSPACE%
+          echo "--------------------------------"
+          dir
